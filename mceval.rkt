@@ -23,6 +23,9 @@
         ((assignment? exp) (eval-assignment exp env))
         ((definition? exp) (eval-definition exp env))
         ((if? exp) (eval-if exp env))
+        ((and? exp) (eval-and exp env)) ;;implement and
+        ((or? exp) (eval-or exp env)) ;;implement or
+        ((let? exp) (mceval (let->combinatin exp) env)) ;;let creates an environment
         ((lambda? exp)
          (make-procedure (lambda-parameters exp)
                          (lambda-body exp)
@@ -78,6 +81,49 @@
                     (mceval (definition-value exp) env)
                     env)
   'ok)
+
+;; implement AND 
+(define (eval-and exp env)
+  (define (iter expressions)
+    (if (null? expressions) ;; base
+      #t 
+      (if (false? (mceval (car expressions) env))
+        #f 
+        (iter (cdr expressions))))) ;; recursivly iterate through the expressions
+  (iter (and-exprs exp)))
+
+(define (and-exprs exp) (cdr exp))
+;; Check if the expression being used is 'and'
+(define (and? exp) (tagged-list? exp 'and))
+
+;; implement OR
+(define (eval-or exp env)
+  (define (iter expressions)
+    (if (null? expressions) ;; base
+      #f
+      (if (mceval (car expressions) env)
+          (mceval (car expressions) env)
+          (iter (cdr expressions))))) ;; recursivly iterate through the expressions
+  (iter (or-exprs exp)))
+
+(define (or-exprs exp) (cdr exp))
+;; Check if the expression being used is 'or'
+(define (or? exp) (tagged-list? exp  'or))
+
+;; implement let
+;; Check if the expression being used is 'let'
+(define (let? exp) (tagged-list? exp 'let))
+
+;; let struct
+(define (let-variables exp) (map car (cadr exp))) ;; handles the variables 
+(define (let-values exp) (map cadr (cadr exp))) ;; handles the values being assigned
+(define (let-body exp) (cddr exp)) ;; handles the body
+
+(define (let->combinatin exp)
+  (let ((variables (let-variables exp))
+        (values (let-values exp))
+        (body (let-body exp)))
+    (cons (make-lambda variables body) values)))
 
 ;;;SECTION 4.1.2
 
@@ -300,13 +346,25 @@
 
 (define (primitive-implementation proc) (cadr proc))
 
+;; Error
+(define (prim-error) (error "Metacircular Interpreter Aborted"))
+
+;; Adding Primitives
 (define primitive-procedures
   (list (list 'car car)
         (list 'cdr cdr)
         (list 'cons cons)
         (list 'null? null?)
-;;      more primitives
-        ))
+        (list '+ +)
+        (list '* *)
+        (list '- -)
+        (list '/ /)
+        (list '< <)
+        (list '<= <=)
+        (list '= =)
+        (list '>= >=)
+        (list '> >)
+        (list 'error prim-error)))
 
 (define (primitive-procedure-names)
   (map car
